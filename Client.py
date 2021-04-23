@@ -274,7 +274,131 @@ def click_processrunning():
     b_startOUT.pack()
 
     prr.mainloop()
-#-----------------------APP
+
+
+# -----------------------APP
+
+
+# -------------------------keystroke-------------------
+def click_keystroke():
+    key_stroke = Tk()
+    key_stroke.title("KeyStroke")
+
+    def click_hook():
+        send("KEYSTROKE")
+
+    button_hook = Button(key_stroke, text="Hook", command=click_hook)
+    button_hook.pack()
+
+    def click_inphim():
+        send("INPHIM")
+        result_phim = receive()
+        print(result_phim)
+
+    button_inphim = Button(key_stroke, text="In Phím", command=click_inphim)
+    button_inphim.pack()
+
+    def click_unhook():
+        send("UNHOOK")
+
+    button_unhook = Button(key_stroke, text="UnHook", command=click_unhook)
+    button_unhook.pack()
+
+    key_stroke.mainloop()
+
+
+# --------------Registry------------------
+global filename
+global namevalue
+global giatri
+
+
+def click_suaregistry():
+    OPTIONS = [
+        "Get value", "Set value", "Delete value", "Create key", "Delete key"
+    ]
+
+    global filename
+    registry = Tk()
+    registry.title('Application')
+    duongdan = Text(registry, width=70, height=1)
+    duongdan.grid(row=0, column=0, padx=5, pady=5, columnspan=2)
+    mo_ta = Text(registry, width=70, height=5)
+    mo_ta.grid(row=1, column=0, padx=5, pady=5, columnspan=2, rowspan=4)
+
+    def click_browser():
+        global filename
+        filename = filedialog.askopenfilename(initialdir="/", title="Open", filetypes=(
+            ("jpeg files", "*.jpg"), ("gif files", "*.gif*"), ("png files", "*.png"), ("All files", "*.*")))
+        duongdan.insert(tkinter.END, filename)
+
+        file = open(filename, 'r', encoding='utf-16')
+        list_line_from_file = file.readlines()
+        file.close()
+
+        for i in range(0, len(list_line_from_file)):
+            mo_ta.insert(tkinter.END, list_line_from_file[i])
+
+        print(mo_ta.get("1.0", "end-1c"))
+
+    b_browser = Button(registry, text="Browser... ", command=click_browser)
+    b_browser.grid(row=0, column=2, padx=5, pady=5)
+
+    def click_guinoidung():
+        filew = open(filename, 'w', encoding='utf-16')
+        print(filename)
+        filew.write(mo_ta.get("1.0", "end-1c"))
+
+    b_guinoidung = Button(registry, text='Gửi nội dung', command=click_guinoidung)
+    b_guinoidung.grid(row=1, column=2, padx=5, pady=5, rowspan=4)
+
+    registry.columnconfigure(0, weight=1)
+    registry.rowconfigure(0, weight=1)
+
+    frame_suagiatri = LabelFrame(registry, text="Sửa giá trị trực tiếp", width=70)
+    frame_suagiatri.grid(row=5, column=0, columnspan=3, rowspan=4)
+
+    clicked = StringVar(frame_suagiatri)
+    clicked.set("Get value")
+
+    opt_value = OptionMenu(frame_suagiatri, clicked, *OPTIONS)
+    opt_value.grid(row=5, column=0, columnspan=3)
+    menu = opt_value.children["menu"]
+    menu.delete(0, "end")
+    subpath = Text(frame_suagiatri, width=50, height=1)
+    subpath.grid(row=6, column=0, columnspan=3, padx=5, pady=5)
+
+    def w_chinhsua(str_state):
+        w_batdauchinhsua = Tk()
+        print(clicked.get())
+        if clicked.get() == OPTIONS[0]:
+            name_value = Text(w_batdauchinhsua, height=1, width=15)
+            name_value.grid(row=0, column=0, padx=5, pady=5)
+
+
+        elif clicked.get() == OPTIONS[1]:
+            name_value = Text(w_batdauchinhsua, height=1, width=15)
+            name_value.grid(row=0, column=0, padx=5, pady=5)
+
+        def click_gui():
+            send_msg = "REGISTRY" + "|" + "GETVALUE" + "|" + subpath.get("1.0", 'end-1c') + "|" + name_value.get(
+                "1.0", 'end-1c') + "|" + "_" + "|" + "_"
+            send(send_msg)
+            print(receive())
+
+        b_gui = Button(w_batdauchinhsua, text="Gửi", command=click_gui)
+        b_gui.grid()
+
+        w_batdauchinhsua.mainloop()
+
+    for value in OPTIONS:
+        menu.add_command(label=value, command=lambda v=value: w_chinhsua(v))
+    # b_start_chinhsua = Button(registry,text = 'Bắt đầu chỉnh sửa')
+    # b_start_chinhsua.grid(row=6,column =2, padx=5,pady=5)
+
+
+    registry.mainloop()
+
 
 B_ketnoi = Button(Client, text="Kết nối", width=10, command=click_ketnoi)
 B_ketnoi.grid(column=5, row=0, padx=5, pady=20, columnspan=2)
@@ -289,7 +413,7 @@ B_apprunning.grid(column=2, row=1, padx=5, pady=5, columnspan=3, rowspan=2)
 B_tatmay = Button(Client, text="Tắt máy", justify=LEFT, width=7, height=4)
 B_tatmay.grid(column=2, row=3, padx=5, pady=5, rowspan=2)
 
-B_suaregistry = Button(Client, text="Sửa Registry", justify=LEFT, width=22, height=3)
+B_suaregistry = Button(Client, text="Sửa Registry", justify=LEFT, width=22, height=3, command=click_suaregistry)
 B_suaregistry.grid(column=2, row=5, padx=5, pady=5, columnspan=4, rowspan=2)
 
 B_chupmanhinh = Button(Client, text="Chụp màn hình", width=13, height=4, command=click_chupmanhinh)
@@ -298,7 +422,7 @@ B_chupmanhinh.grid(column=3, row=3, padx=5, pady=5, columnspan=2)
 B_thoat = Button(Client, text="Thoát", width=10, height=3)
 B_thoat.grid(column=6, row=5, padx=5, pady=5, rowspan=2)
 
-B_ketstoke = Button(Client, text="Keystoke", width=10, height=10)
+B_ketstoke = Button(Client, text="Keystoke", width=10, height=10, command=click_keystroke)
 B_ketstoke.grid(column=5, row=1, padx=5, pady=5, columnspan=2, rowspan=4)
 
 print(IP_SERVER)
