@@ -14,7 +14,7 @@ import time
 
 HEADER = 64
 PORT = 2050
-SERVER = "192.168.100.12"
+SERVER = "172.16.4.167"
 FORMAT = "utf-8"
 ADDR = (SERVER, PORT)
 DISCONNECT_MESSAGE = "!DISCONNECTED"
@@ -335,24 +335,16 @@ def click_processrunning_app():
         def remove_app():
             send("KILLAPP|" + obj.get())
             table_process.delete(*table_process.get_children())
-            if (receive().decode(FORMAT) == "True"):
-                for i in table_process.get_children():
-                    table_process.delete(i)
-                global id
-                id = 0
-                n = len(list_table)
-                while id < n:
-                    if list_table[id][1] != obj.get():
+            ID_app = 0
+            while True:
+                after_del = receive().decode(FORMAT)
+                if after_del == "DONE":
+                    break
+                after_del_data = after_del.split('|')
+                table_process.insert("", 'end', text="L" + str(ID_app),
+                                     values=(str(after_del_data[1]), after_del_data[0], str(after_del_data[2])))
+                ID_app += 1
 
-                        table_process.insert("", 'end', text="L" + str(ID_count_app),
-                                             values=(str(list_table[id][1]), list_table[id][0], str(list_table[id][2])))
-                    else:
-                        list_table.remove(list_table[id])
-                        id -= 1
-                        n -= 1
-                    id += 1
-            else:
-                print("False")
 
         b_start = Button(kill_obj, text="Start", command=remove_app)
         b_start.pack()
@@ -371,6 +363,7 @@ def click_processrunning_app():
         def add_app():
             send("STARTAPP|" + start_input.get())
             table_process.delete(*table_process.get_children())
+
             while True:
                 str_start = receive().decode(FORMAT)
                 if str_start == "DONE":

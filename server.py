@@ -182,9 +182,11 @@ def handle_app(conn):
 def handle_kill_app(str_mes):
     try:
         os.kill(int(str_mes), signal.SIGTERM)
-        return True
+        #return True
     except:
-        return False
+        pass
+        #return False
+
 
 
 def handle_start_app(conn, str_mes):
@@ -436,6 +438,7 @@ def handle_client(conn, addr):
                 handle_start_app(conn, list_mes[1])
             elif list_mes[0] == "KILLAPP":
                 handle_kill_app(list_mes[1])
+                handle_app(conn)
 
     conn.close()
 
