@@ -311,12 +311,17 @@ def click_keystroke():
 global filename
 global namevalue
 global giatri
+global g_name
+global g_value
+global g_type
+global g_mode
 
 
 def click_suaregistry():
     OPTIONS = [
         "Get value", "Set value", "Delete value", "Create key", "Delete key"
     ]
+    OPT = ["String", "Binary", "DWORD", "QWORD", "Multi-String", "Expandable String"]
 
     global filename
     registry = Tk()
@@ -363,26 +368,70 @@ def click_suaregistry():
 
     opt_value = OptionMenu(frame_suagiatri, clicked, *OPTIONS)
     opt_value.grid(row=5, column=0, columnspan=3)
-    menu = opt_value.children["menu"]
-    menu.delete(0, "end")
+    # menu = opt_value.children["menu"]
+    # menu.delete(0, "end")
     subpath = Text(frame_suagiatri, width=50, height=1)
     subpath.grid(row=6, column=0, columnspan=3, padx=5, pady=5)
 
     def w_chinhsua(str_state):
+
         w_batdauchinhsua = Tk()
         print(clicked.get())
+        list_opt = []
         if clicked.get() == OPTIONS[0]:
             name_value = Text(w_batdauchinhsua, height=1, width=15)
             name_value.grid(row=0, column=0, padx=5, pady=5)
-
+            print("here " + name_value.get("1.0", 'end-1c'))
+            list_opt.append(name_value.get("1.0", 'end-1c'))
 
         elif clicked.get() == OPTIONS[1]:
             name_value = Text(w_batdauchinhsua, height=1, width=15)
             name_value.grid(row=0, column=0, padx=5, pady=5)
 
+            t_value = Text(w_batdauchinhsua, height=1, width=15)
+            t_value.grid(row=0, column=1, padx=5, pady=5)
+            g_value = t_value.get("1.0", 'end-1c')
+
+            choose = StringVar(w_batdauchinhsua)
+            choose.set(OPT[0])
+
+            opt = OptionMenu(w_batdauchinhsua, choose, *OPT)
+            opt.grid(row=5, column=0, columnspan=3)
+
+        elif clicked.get() == OPTIONS[2]:
+            name_value = Text(w_batdauchinhsua, height=1, width=15)
+            name_value.grid(row=0, column=0, padx=5, pady=5)
+            print("here " + name_value.get("1.0", 'end-1c'))
+            list_opt.append(name_value.get("1.0", 'end-1c'))
+        elif clicked.get() == OPTIONS[3]:
+            notice = Label(w_batdauchinhsua, text = "Click để gửi yêu cầu")
+            notice.grid(row = 0,column=0,padx=5,pady=5)
+        elif clicked.get() == OPTIONS[3]:
+            notice = Label(w_batdauchinhsua, text = "Click để gửi yêu cầu")
+            notice.grid(row = 0,column=0,padx=5,pady=5)
+
         def click_gui():
-            send_msg = "REGISTRY" + "|" + "GETVALUE" + "|" + subpath.get("1.0", 'end-1c') + "|" + name_value.get(
-                "1.0", 'end-1c') + "|" + "_" + "|" + "_"
+            global g_name
+            global g_value
+            global g_type
+            global g_mode
+            g_name = '_'
+            g_value = '_'
+            g_type = '_'
+            g_mode = '_'
+            try:
+                g_mode = clicked.get()
+                g_mode = g_mode.replace(" ", "")
+                g_mode = g_mode.upper()
+                g_name = name_value.get("1.0", 'end-1c')
+                g_value = t_value.get("1.0", 'end-1c')
+                g_type = choose.get().upper()
+
+            except:
+                pass
+
+            send_msg = "REGISTRY" + "|" + g_mode + "|" + subpath.get("1.0",
+                                                                     'end-1c') + "|" + g_name + "|" + g_value + "|" + g_type
             send(send_msg)
             print(receive())
 
@@ -391,11 +440,10 @@ def click_suaregistry():
 
         w_batdauchinhsua.mainloop()
 
-    for value in OPTIONS:
-        menu.add_command(label=value, command=lambda v=value: w_chinhsua(v))
-    # b_start_chinhsua = Button(registry,text = 'Bắt đầu chỉnh sửa')
-    # b_start_chinhsua.grid(row=6,column =2, padx=5,pady=5)
-
+    # for value in OPTIONS:
+    #  menu.add_command(label=value, command=lambda v=value: w_chinhsua(v))
+    b_start_chinhsua = Button(registry, text='Bắt đầu chỉnh sửa', command=lambda v=clicked.get(): w_chinhsua(v))
+    b_start_chinhsua.grid(row=6, column=2, padx=5, pady=5)
 
     registry.mainloop()
 

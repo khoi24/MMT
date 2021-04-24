@@ -230,13 +230,15 @@ def handle_setvalue(state, path, name, value, type_INT):
 
 
 def handle_deletevalue(state, path, name):
+    print("OK")
     try:
         key = winreg.OpenKey(state, path, 0,
                              winreg.KEY_ALL_ACCESS)
         winreg.DeleteValue(key, name)
         winreg.CloseKey(key)
-        win32gui.SendMessage(
-            win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, 'Environment')
+        print("OK1")
+        #win32gui.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, path)
+        print("OK2")
         return True
     except WindowsError:
         return False
@@ -253,8 +255,15 @@ def handle_createkey(state, path):
 
 def handle_deletekey(state, path):
     try:
-        key = winreg.OpenKey(state, path, 0, winreg.KEY_ALL_ACCESS)
-        winreg.DeleteKey(key, 'Test1')
+        path = path[::-1]
+        print(str)
+        list_path = path.split('\\', 1)
+        print(list)
+        if len(list_path) == 1:
+            list_path.append('')
+        print(path)
+        key = winreg.OpenKey(state, list_path[1][::-1], 0, winreg.KEY_ALL_ACCESS)
+        winreg.DeleteKey(key, list_path[0][::-1])
         return True
     except WindowsError:
         return False
@@ -291,9 +300,9 @@ def handle_registry(list_mes):
         type_INT = winreg.REG_SZ
     elif datatype == 'QWORD':
         type_INT = winreg.REG_DWORD
-    elif datatype == 'MUlTSTRING':
+    elif datatype == 'MUlTI-STRING':
         type_INT = winreg.REG_MULTI_SZ
-    elif datatype == 'EXSTRING':
+    elif datatype == 'EXPANDABLE STRING':
         type_INT = winreg.REG_EXPAND_SZ
 
     if mode == "GETVALUE":
