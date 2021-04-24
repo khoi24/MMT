@@ -14,12 +14,14 @@ import time
 
 HEADER = 64
 PORT = 2050
-SERVER = "192.168.100.12"
+SERVER = "192.168.43.120"
 FORMAT = "utf-8"
 ADDR = (SERVER, PORT)
 DISCONNECT_MESSAGE = "!DISCONNECTED"
 MESSAGE_CMH = "CHUPMANHINH"
 MESSAGE_PR = "PROCESSRUNNING"
+global FLAG_CONNECTION
+FLAG_CONNECTION = False
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -65,9 +67,18 @@ def click_ketnoi():
 
         newT = Label(sth, text="[TESTING] Server IP: " + IP_SERVER)
         newT.grid()
+        FLAG_CONNECTION = True
+
+        B_processrunning['state'] = tkinter.NORMAL
+        B_ketstoke['state'] = tkinter.NORMAL
+        B_chupmanhinh['state'] = tkinter.NORMAL
+        B_suaregistry['state'] = tkinter.NORMAL
+        B_apprunning['state'] = tkinter.NORMAL
+        return True
     except:
         newF = Label(sth, text="False")
         newF.grid()
+        return False
 
     sth.mainloop()
 
@@ -227,14 +238,7 @@ def click_processrunning():
                 n = len(list_table)
                 while id < n:
                     if list_table[id][1] != obj.get():
-                        '''
-                        print(line[1])
-                        print(type(line[1]))
-                        print(" = ")
-                        print(id_obj)
-                        print(type(id_obj))
-                        print("\n")
-                        '''
+
                         table_process.insert("", 'end', text="L" + str(ID_count),
                                              values=(str(list_table[id][1]), list_table[id][0], str(list_table[id][2])))
                     else:
@@ -258,14 +262,20 @@ def click_processrunning():
         start_input = Entry(startP)
         start_input.pack()
 
+
         def add_process():
             send("START|" + start_input.get())
-            str_start = receive().decode(FORMAT)
-            list_start = str_start.split('|')
-            global ID_count
-            table_process.insert("", 'end', text="L" + str(ID_count),
-                                 values=(str(list_start[0]), str(list_start[1]), str(list_start[2])))
-            ID_count += 1
+            while True:
+                str_start = receive().decode(FORMAT)
+                if str_start == "DONE":
+                    break
+                list_start = str_start.split('|')
+                global ID_count
+                list_table.append([str(list_start[1]), list_start[0], str(list_start[2])])
+
+                table_process.insert("", 'end', text="L" + str(ID_count),
+                                     values=(str(list_start[1]), list_start[0], str(list_start[2])))
+                ID_count += 1
 
         b_start_process = Button(startP, text="Start", command=add_process)
         b_start_process.pack()
@@ -277,6 +287,117 @@ def click_processrunning():
 
 
 # -----------------------APP
+
+
+
+
+
+global str_data_app
+global ID_count_app
+
+
+def click_processrunning_app():
+    send("APPRUNNING")
+
+    prr = Tk()
+    prr.title("process")
+
+    table_process = Treeview(prr, selectmode='browse')
+
+    table_process.pack(side='right')  # column=0, row=1, columnspan=4)
+
+    scrollbar = Scrollbar(prr, orient="vertical", command=table_process.yview)
+    scrollbar.pack(side='right', fill='x')
+    table_process.configure(xscrollcommand=scrollbar.set)
+
+    table_process['columns'] = ["1", "2", "3"]
+
+    table_process['show'] = 'headings'
+
+    table_process.column("1", width=120, anchor=W)
+    table_process.column("2", width=120, anchor=CENTER)
+    table_process.column("3", width=120, anchor=CENTER)
+
+    table_process.heading("1", text="Name Process", anchor=W)
+    table_process.heading("2", text="ID Process", anchor=CENTER)
+    table_process.heading("3", text="Count Thread", anchor=W)
+    global ID_count_app
+    ID_count_app = 1
+    list_table = []
+    while True:
+        line = receive()
+        line = line.decode(FORMAT)
+        if line == "DONE":
+            break
+        data = line.split('|')
+        list_table.append([str(data[1]), data[0], str(data[2])])
+
+        table_process.insert("", 'end', text="L" + str(ID_count_app),
+                             values=(str(data[1]), data[0], str(data[2])))
+        ID_count_app += 1
+
+    def click_kill_app():
+        kill_obj = Tk()
+        kill_obj.title("Kill")
+
+        obj = Entry(kill_obj)
+        obj.pack()
+
+        def remove_app():
+            send("KILLAPP|" + obj.get())
+            table_process.delete(*table_process.get_children())
+            ID_app = 0
+            while True:
+                after_del = receive().decode(FORMAT)
+                if after_del == "DONE":
+                    break
+                after_del_data = after_del.split('|')
+                table_process.insert("", 'end', text="L" + str(ID_app),
+                                     values=(str(after_del_data[1]), after_del_data[0], str(after_del_data[2])))
+                ID_app += 1
+
+
+        b_start = Button(kill_obj, text="Start", command=remove_app)
+        b_start.pack()
+        kill_obj.mainloop()
+
+    b_kill = Button(prr, text="Kill", command=click_kill_app)
+    b_kill.pack()
+
+    def click_startOUT_app():
+        startP = Tk()
+        startP.title("Start")
+        start_input = Entry(startP)
+        start_input.pack()
+
+
+        def add_app():
+            send("STARTAPP|" + start_input.get())
+            table_process.delete(*table_process.get_children())
+
+            while True:
+                str_start = receive().decode(FORMAT)
+                if str_start == "DONE":
+                    break
+                list_start = str_start.split('|')
+                global ID_count_app
+                list_table.append([str(list_start[1]), list_start[0], str(list_start[2])])
+
+                table_process.insert("", 'end', text="L" + str(ID_count_app),
+                                     values=(str(list_start[1]), list_start[0], str(list_start[2])))
+                ID_count_app += 1
+
+        b_start_process = Button(startP, text="Start", command=add_app)
+        b_start_process.pack()
+
+    b_startOUT = Button(prr, text="Start", command=click_startOUT_app)
+    b_startOUT.pack()
+
+    prr.mainloop()
+
+
+
+
 
 
 # -------------------------keystroke-------------------
@@ -448,6 +569,17 @@ def click_suaregistry():
     registry.mainloop()
 
 
+#--------tat may
+def click_tatmay():
+    send("TATMAY")
+
+# ------thoat
+def click_thoat():
+    send(DISCONNECT_MESSAGE)
+    Client.destroy()
+
+
+
 B_ketnoi = Button(Client, text="Kết nối", width=10, command=click_ketnoi)
 B_ketnoi.grid(column=5, row=0, padx=5, pady=20, columnspan=2)
 
@@ -455,10 +587,10 @@ B_processrunning = Button(Client, text="Process Running", justify=LEFT, width=15
                           command=click_processrunning)
 B_processrunning.grid(column=0, row=1, padx=5, pady=5, columnspan=2, rowspan=6)
 
-B_apprunning = Button(Client, text="App Running", width=23, height=5)
+B_apprunning = Button(Client, text="App Running", width=23, height=5,command = click_processrunning_app)
 B_apprunning.grid(column=2, row=1, padx=5, pady=5, columnspan=3, rowspan=2)
 
-B_tatmay = Button(Client, text="Tắt máy", justify=LEFT, width=7, height=4)
+B_tatmay = Button(Client, text="Tắt máy", justify=LEFT, width=7, height=4,command = click_tatmay)
 B_tatmay.grid(column=2, row=3, padx=5, pady=5, rowspan=2)
 
 B_suaregistry = Button(Client, text="Sửa Registry", justify=LEFT, width=22, height=3, command=click_suaregistry)
@@ -467,11 +599,22 @@ B_suaregistry.grid(column=2, row=5, padx=5, pady=5, columnspan=4, rowspan=2)
 B_chupmanhinh = Button(Client, text="Chụp màn hình", width=13, height=4, command=click_chupmanhinh)
 B_chupmanhinh.grid(column=3, row=3, padx=5, pady=5, columnspan=2)
 
-B_thoat = Button(Client, text="Thoát", width=10, height=3)
+B_thoat = Button(Client, text="Thoát", width=10, height=3,command = click_thoat)
 B_thoat.grid(column=6, row=5, padx=5, pady=5, rowspan=2)
 
 B_ketstoke = Button(Client, text="Keystoke", width=10, height=10, command=click_keystroke)
 B_ketstoke.grid(column=5, row=1, padx=5, pady=5, columnspan=2, rowspan=4)
+
+
+if not FLAG_CONNECTION:
+    B_processrunning['state'] = tkinter.DISABLED
+    B_ketstoke['state'] = tkinter.DISABLED
+    B_chupmanhinh['state'] = tkinter.DISABLED
+    B_suaregistry['state'] = tkinter.DISABLED
+    B_apprunning['state'] = tkinter.DISABLED
+
+
+
 
 print(IP_SERVER)
 

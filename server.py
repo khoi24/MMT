@@ -113,27 +113,96 @@ def handle_kill(str_mes):
         return False
 
 
-def handle_start(str_mes):
+def handle_start(conn, str_mes):
+    app = Application().start(str_mes)
+    handle_process(conn)
+
+# -------app running
+
+
+
+
+
+
+
+def check_app(list, app):
+    for line in list:
+        if line[1] == app[1]:
+            line[2] += 1
+            return True
+
+    return False
+
+
+def find_app():
+    import subprocess
+    list_data = []
+    cmd = 'powershell "gps | where {$_.MainWindowTitle } | select Description,Id'
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    for line in proc.stdout:
+        if not line.decode()[0].isspace():
+            list_data.append(line.decode().split(' '))
+            print(line.decode().rstrip())
+            print(type(line.decode()))
+
+    result = []
+    for data in list_data:
+        result_data = []
+        str_data = ''
+        str_id = ''
+        for index in data:
+            if index != '':
+                if index != data[-1]:
+                    str_data += index + ' '
+                else:
+                    str_id = index
+
+        result_data.append(str_data.strip())
+        result_data.append(str_id.strip('\r\n'))
+        result.append(result_data)
+
+    print(result)
+
+    list = []
+    for line in result:
+        if check_app(list, line) == False:
+            list.append([line[0], line[1], 1])
+    return list
+
+
+def handle_app(conn):
+    list_data = find_app()
+    for line in list_data:
+        msg_send = str(line[0]) + "|" + str(line[1]) + "|" + str(line[2])
+        send_process(conn, msg_send)
+
+    send_process(conn, "DONE")
+
+
+def handle_kill_app(str_mes):
     try:
-
-        app = Application().start(str_mes)
-        f = wmi.WMI()
-        print(str_mes)
-        for process in f.Win32_Process():
-
-            if str(process.Name) == str(str_mes):
-                print("RESULT")
-                listda = []
-                listda.append(([process.ProcessId, process.Name, 1]))
-                print("RESULT")
-                msg_send = str(listda[0][1]) + "|" + str(listda[0][0]) + "|" + str(listda[0][2])
-                print("RESULT")
-                print(msg_send)
-                return msg_send
+        os.kill(int(str_mes), signal.SIGTERM)
+        #return True
     except:
-        return False
+        pass
+        #return False
 
 
+
+def handle_start_app(conn, str_mes):
+    app = Application().start(str_mes)
+    handle_app(conn)
+
+
+
+
+
+
+
+
+
+
+# -------------keystroke---------------
 global result
 global Flag
 
@@ -206,6 +275,8 @@ def handle_unhook():
     send_keys('{ENTER}')
 
 
+# ------------registry
+
 def handle_getvalue(state, path, name):
     try:
         registry_key = winreg.OpenKey(state, path, 0,
@@ -237,7 +308,7 @@ def handle_deletevalue(state, path, name):
         winreg.DeleteValue(key, name)
         winreg.CloseKey(key)
         print("OK1")
-        #win32gui.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, path)
+        # win32gui.SendMessage(win32con.HWND_BROADCAST, win32con.WM_SETTINGCHANGE, 0, path)
         print("OK2")
         return True
     except WindowsError:
@@ -317,8 +388,41 @@ def handle_registry(list_mes):
         return handle_deletekey(state, subpath[1])
 
 
+#---------tatmay
+def handle_tatmay():
+    def countdown(count):
+        # change text in label
+        count_label['text'] = count
+
+        if count >= 0:
+            # call countdown again after 1000ms (1s)
+            w_tatmay.after(1000, countdown, count - 1)
+            if count == 0:
+                os.system("shutdown /s /t 1")
+
+    w_tatmay = Tk()
+    ques = Label(w_tatmay,text ="Do you wish to shutdown your computer ? (yes / no): " )
+    ques.pack()
+
+    def click_yes():
+        os.system("shutdown /s /t 1")
+
+    b_yes = Button(w_tatmay, text = "Yes")
+    b_yes.pack()
+    b_no = Button(w_tatmay, text = "No",command = w_tatmay.destroy)
+    b_no.pack()
+
+    count_label = Label(w_tatmay)
+    count_label.pack()
+    countdown(30)
 
 
+    w_tatmay.mainloop()
+
+
+
+
+# ---------client
 def handle_client(conn, addr):
     global Flag
     print(f"[NEW CONNECTION] {addr} connected ")
@@ -345,7 +449,7 @@ def handle_client(conn, addr):
             elif list_mes[0] == "KILL":
                 send_process(conn, str(handle_kill(list_mes[1])))
             elif list_mes[0] == "START":
-                send_process(conn, str(handle_start(list_mes[1])))
+                handle_start(conn, list_mes[1])
             elif list_mes[0] == "KEYSTROKE":
                 thread = threading.Thread(target=handle_keystroke)
                 thread.start()
@@ -362,6 +466,16 @@ def handle_client(conn, addr):
                 handle_unhook()
             elif list_mes[0] == "REGISTRY":
                 send_process(conn, str(handle_registry(list_mes)))
+            elif msg == "APPRUNNING":
+                handle_app(conn)
+            elif list_mes[0] == "STARTAPP":
+                handle_start_app(conn, list_mes[1])
+            elif list_mes[0] == "KILLAPP":
+                handle_kill_app(list_mes[1])
+                handle_app(conn)
+            elif list_mes[0] == "TATMAY":
+                handle_tatmay()
+
 
     conn.close()
 
