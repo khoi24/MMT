@@ -14,12 +14,14 @@ import time
 
 HEADER = 64
 PORT = 2050
-SERVER = "172.16.4.167"
+SERVER = "192.168.43.120"
 FORMAT = "utf-8"
 ADDR = (SERVER, PORT)
 DISCONNECT_MESSAGE = "!DISCONNECTED"
 MESSAGE_CMH = "CHUPMANHINH"
 MESSAGE_PR = "PROCESSRUNNING"
+global FLAG_CONNECTION
+FLAG_CONNECTION = False
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -65,9 +67,18 @@ def click_ketnoi():
 
         newT = Label(sth, text="[TESTING] Server IP: " + IP_SERVER)
         newT.grid()
+        FLAG_CONNECTION = True
+
+        B_processrunning['state'] = tkinter.NORMAL
+        B_ketstoke['state'] = tkinter.NORMAL
+        B_chupmanhinh['state'] = tkinter.NORMAL
+        B_suaregistry['state'] = tkinter.NORMAL
+        B_apprunning['state'] = tkinter.NORMAL
+        return True
     except:
         newF = Label(sth, text="False")
         newF.grid()
+        return False
 
     sth.mainloop()
 
@@ -558,6 +569,17 @@ def click_suaregistry():
     registry.mainloop()
 
 
+#--------tat may
+def click_tatmay():
+    send("TATMAY")
+
+# ------thoat
+def click_thoat():
+    send(DISCONNECT_MESSAGE)
+    Client.destroy()
+
+
+
 B_ketnoi = Button(Client, text="Kết nối", width=10, command=click_ketnoi)
 B_ketnoi.grid(column=5, row=0, padx=5, pady=20, columnspan=2)
 
@@ -568,7 +590,7 @@ B_processrunning.grid(column=0, row=1, padx=5, pady=5, columnspan=2, rowspan=6)
 B_apprunning = Button(Client, text="App Running", width=23, height=5,command = click_processrunning_app)
 B_apprunning.grid(column=2, row=1, padx=5, pady=5, columnspan=3, rowspan=2)
 
-B_tatmay = Button(Client, text="Tắt máy", justify=LEFT, width=7, height=4)
+B_tatmay = Button(Client, text="Tắt máy", justify=LEFT, width=7, height=4,command = click_tatmay)
 B_tatmay.grid(column=2, row=3, padx=5, pady=5, rowspan=2)
 
 B_suaregistry = Button(Client, text="Sửa Registry", justify=LEFT, width=22, height=3, command=click_suaregistry)
@@ -577,11 +599,22 @@ B_suaregistry.grid(column=2, row=5, padx=5, pady=5, columnspan=4, rowspan=2)
 B_chupmanhinh = Button(Client, text="Chụp màn hình", width=13, height=4, command=click_chupmanhinh)
 B_chupmanhinh.grid(column=3, row=3, padx=5, pady=5, columnspan=2)
 
-B_thoat = Button(Client, text="Thoát", width=10, height=3)
+B_thoat = Button(Client, text="Thoát", width=10, height=3,command = click_thoat)
 B_thoat.grid(column=6, row=5, padx=5, pady=5, rowspan=2)
 
 B_ketstoke = Button(Client, text="Keystoke", width=10, height=10, command=click_keystroke)
 B_ketstoke.grid(column=5, row=1, padx=5, pady=5, columnspan=2, rowspan=4)
+
+
+if not FLAG_CONNECTION:
+    B_processrunning['state'] = tkinter.DISABLED
+    B_ketstoke['state'] = tkinter.DISABLED
+    B_chupmanhinh['state'] = tkinter.DISABLED
+    B_suaregistry['state'] = tkinter.DISABLED
+    B_apprunning['state'] = tkinter.DISABLED
+
+
+
 
 print(IP_SERVER)
 

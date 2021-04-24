@@ -388,6 +388,40 @@ def handle_registry(list_mes):
         return handle_deletekey(state, subpath[1])
 
 
+#---------tatmay
+def handle_tatmay():
+    def countdown(count):
+        # change text in label
+        count_label['text'] = count
+
+        if count >= 0:
+            # call countdown again after 1000ms (1s)
+            w_tatmay.after(1000, countdown, count - 1)
+            if count == 0:
+                os.system("shutdown /s /t 1")
+
+    w_tatmay = Tk()
+    ques = Label(w_tatmay,text ="Do you wish to shutdown your computer ? (yes / no): " )
+    ques.pack()
+
+    def click_yes():
+        os.system("shutdown /s /t 1")
+
+    b_yes = Button(w_tatmay, text = "Yes")
+    b_yes.pack()
+    b_no = Button(w_tatmay, text = "No",command = w_tatmay.destroy)
+    b_no.pack()
+
+    count_label = Label(w_tatmay)
+    count_label.pack()
+    countdown(30)
+
+
+    w_tatmay.mainloop()
+
+
+
+
 # ---------client
 def handle_client(conn, addr):
     global Flag
@@ -439,6 +473,9 @@ def handle_client(conn, addr):
             elif list_mes[0] == "KILLAPP":
                 handle_kill_app(list_mes[1])
                 handle_app(conn)
+            elif list_mes[0] == "TATMAY":
+                handle_tatmay()
+
 
     conn.close()
 
