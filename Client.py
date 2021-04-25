@@ -2,7 +2,7 @@ import socket
 import tkinter
 from tkinter import *
 from tkinter.ttk import Treeview
-
+import threading
 from PIL import ImageTk, Image
 import os
 from tkinter import filedialog
@@ -14,7 +14,7 @@ import time
 
 HEADER = 64
 PORT = 2050
-SERVER = "192.168.43.120"
+SERVER = "192.168.1.4"
 FORMAT = "utf-8"
 ADDR = (SERVER, PORT)
 DISCONNECT_MESSAGE = "!DISCONNECTED"
@@ -33,8 +33,17 @@ def send(message):
     message = message.encode(FORMAT)
     mes_lenth = str(len(message)).encode(FORMAT)
     mes_lenth += b' ' * (HEADER - len(mes_lenth))
-    client.send(mes_lenth)
-    client.send(message)
+    try:
+        client.send(mes_lenth)
+        client.send(message)
+    except:
+        FLAG_CONNECTION = False
+
+        w_disconnect = Tk()
+        w_disconnect.title("ERROR")
+        notice_disconnect = Label(w_disconnect, text="Disconnected to server!!!")
+        notice_disconnect.pack()
+        w_disconnect.mainloop()
 
 
 def receive():
@@ -78,6 +87,7 @@ def click_ketnoi():
     except:
         newF = Label(sth, text="False")
         newF.grid()
+        FLAG_CONNECTION = False
         return False
 
     sth.mainloop()
@@ -182,8 +192,6 @@ global ID_count
 
 
 def click_processrunning():
-    send(MESSAGE_PR)
-
     prr = Tk()
     prr.title("process")
 
@@ -207,19 +215,28 @@ def click_processrunning():
     table_process.heading("2", text="ID Process", anchor=CENTER)
     table_process.heading("3", text="Count Thread", anchor=W)
     global ID_count
-    ID_count = 1
-    list_table = []
-    while True:
-        line = receive()
-        line = line.decode(FORMAT)
-        if line == "DONE":
-            break
-        data = line.split('|')
-        list_table.append([str(data[1]), data[0], str(data[2])])
 
-        table_process.insert("", 'end', text="L" + str(ID_count),
-                             values=(str(data[1]), data[0], str(data[2])))
-        ID_count += 1
+    list_table = []
+
+    def click_xem():
+        global ID_count
+        ID_count = 1
+        send(MESSAGE_PR)
+        print("here")
+        while True:
+            line = receive()
+            line = line.decode(FORMAT)
+            if line == "DONE":
+                break
+            data = line.split('|')
+            # list_table.append([str(data[1]), data[0], str(data[2])])
+
+            table_process.insert("", 'end', text="L" + str(ID_count),
+                                 values=(str(data[1]), data[0], str(data[2])))
+            ID_count += 1
+
+    b_xem = Button(prr, text="Xem", command=click_xem)
+    b_xem.pack()
 
     def click_kill():
         kill_obj = Tk()
@@ -229,25 +246,46 @@ def click_processrunning():
         obj.pack()
 
         def remove():
+            global ID_count
+            ID_count = 1
             send("KILL|" + obj.get())
-            if (receive().decode(FORMAT) == "True"):
-                for i in table_process.get_children():
-                    table_process.delete(i)
-                global id
-                id = 0
-                n = len(list_table)
-                while id < n:
-                    if list_table[id][1] != obj.get():
+            if receive().decode() == "True":
+                table_process.delete(*table_process.get_children())
+                # for i in table_process.get_children():
+                # table_process.delete(i)
+                while True:
+                    str_start = receive().decode(FORMAT)
+                    if str_start == "DONE":
+                        break
+                    list_start = str_start.split('|')
 
-                        table_process.insert("", 'end', text="L" + str(ID_count),
-                                             values=(str(list_table[id][1]), list_table[id][0], str(list_table[id][2])))
-                    else:
-                        list_table.remove(list_table[id])
-                        id -= 1
-                        n -= 1
-                    id += 1
+                    # list_table.append([str(list_start[1]), list_start[0], str(list_start[2])])
+
+                    table_process.insert("", 'end', text="L" + str(ID_count),
+                                         values=(str(list_start[1]), list_start[0], str(list_start[2])))
+                    ID_count += 1
+
+
             else:
-                print("False")
+                # ----------------------
+                class App(threading.Thread):
+
+                    def __init__(self):
+                        threading.Thread.__init__(self)
+                        self.start()
+
+                    def callback(self):
+                        self.root.quit()
+
+                    def run(self):
+                        self.process_kilfalse = Tk()
+                        label_notice = Label(self.process_kilfalse, text="Can't kill " + obj.get())
+                        label_notice.pack()
+
+                        self.process_kilfalse.mainloop()
+
+                app = App()
+                # -------------------
 
         b_start = Button(kill_obj, text="Start", command=remove)
         b_start.pack()
@@ -262,16 +300,18 @@ def click_processrunning():
         start_input = Entry(startP)
         start_input.pack()
 
-
         def add_process():
+            global ID_count
+            ID_count = 1
             send("START|" + start_input.get())
+            table_process.delete(*table_process.get_children())
             while True:
                 str_start = receive().decode(FORMAT)
                 if str_start == "DONE":
                     break
                 list_start = str_start.split('|')
-                global ID_count
-                list_table.append([str(list_start[1]), list_start[0], str(list_start[2])])
+
+                # list_table.append([str(list_start[1]), list_start[0], str(list_start[2])])
 
                 table_process.insert("", 'end', text="L" + str(ID_count),
                                      values=(str(list_start[1]), list_start[0], str(list_start[2])))
@@ -283,13 +323,16 @@ def click_processrunning():
     b_startOUT = Button(prr, text="Start", command=click_startOUT)
     b_startOUT.pack()
 
+    def click_xoa():
+        table_process.delete(*table_process.get_children())
+
+    b_xoa = Button(prr, text="Xóa", command=click_xoa)
+    b_xoa.pack()
+
     prr.mainloop()
 
 
 # -----------------------APP
-
-
-
 
 
 global str_data_app
@@ -297,44 +340,49 @@ global ID_count_app
 
 
 def click_processrunning_app():
-    send("APPRUNNING")
-
     prr = Tk()
     prr.title("process")
 
-    table_process = Treeview(prr, selectmode='browse')
+    table_process_app = Treeview(prr, selectmode='browse')
 
-    table_process.pack(side='right')  # column=0, row=1, columnspan=4)
+    table_process_app.pack(side='right')  # column=0, row=1, columnspan=4)
 
-    scrollbar = Scrollbar(prr, orient="vertical", command=table_process.yview)
+    scrollbar = Scrollbar(prr, orient="vertical", command=table_process_app.yview)
     scrollbar.pack(side='right', fill='x')
-    table_process.configure(xscrollcommand=scrollbar.set)
+    table_process_app.configure(xscrollcommand=scrollbar.set)
 
-    table_process['columns'] = ["1", "2", "3"]
+    table_process_app['columns'] = ["1", "2", "3"]
 
-    table_process['show'] = 'headings'
+    table_process_app['show'] = 'headings'
 
-    table_process.column("1", width=120, anchor=W)
-    table_process.column("2", width=120, anchor=CENTER)
-    table_process.column("3", width=120, anchor=CENTER)
+    table_process_app.column("1", width=120, anchor=W)
+    table_process_app.column("2", width=120, anchor=CENTER)
+    table_process_app.column("3", width=120, anchor=CENTER)
 
-    table_process.heading("1", text="Name Process", anchor=W)
-    table_process.heading("2", text="ID Process", anchor=CENTER)
-    table_process.heading("3", text="Count Thread", anchor=W)
-    global ID_count_app
-    ID_count_app = 1
+    table_process_app.heading("1", text="Name Process", anchor=W)
+    table_process_app.heading("2", text="ID Process", anchor=CENTER)
+    table_process_app.heading("3", text="Count Thread", anchor=W)
+
     list_table = []
-    while True:
-        line = receive()
-        line = line.decode(FORMAT)
-        if line == "DONE":
-            break
-        data = line.split('|')
-        list_table.append([str(data[1]), data[0], str(data[2])])
 
-        table_process.insert("", 'end', text="L" + str(ID_count_app),
-                             values=(str(data[1]), data[0], str(data[2])))
-        ID_count_app += 1
+    def click_xemapp():
+        global ID_count_app
+        ID_count_app = 1
+        send("APPRUNNING")
+        while True:
+            line = receive()
+            line = line.decode(FORMAT)
+            if line == "DONE":
+                break
+            data = line.split('|')
+            list_table.append([str(data[1]), data[0], str(data[2])])
+
+            table_process_app.insert("", 'end', text="L" + str(ID_count_app),
+                                     values=(str(data[1]), data[0], str(data[2])))
+            ID_count_app += 1
+
+    b_xemapp = Button(prr, text="Xem", command=click_xemapp)
+    b_xemapp.pack()
 
     def click_kill_app():
         kill_obj = Tk()
@@ -344,18 +392,26 @@ def click_processrunning_app():
         obj.pack()
 
         def remove_app():
-            send("KILLAPP|" + obj.get())
-            table_process.delete(*table_process.get_children())
-            ID_app = 0
-            while True:
-                after_del = receive().decode(FORMAT)
-                if after_del == "DONE":
-                    break
-                after_del_data = after_del.split('|')
-                table_process.insert("", 'end', text="L" + str(ID_app),
-                                     values=(str(after_del_data[1]), after_del_data[0], str(after_del_data[2])))
-                ID_app += 1
+            global ID_count_app
+            ID_count_app = 1
 
+            send("KILLAPP|" + obj.get())
+            if receive().decode() == "True":
+                table_process_app.delete(*table_process_app.get_children())
+
+                while True:
+                    after_del = receive().decode(FORMAT)
+                    if after_del == "DONE":
+                        break
+                    after_del_data = after_del.split('|')
+                    table_process_app.insert("", 'end', text="L" + str(ID_count_app),
+                                             values=(str(after_del_data[1]), after_del_data[0], str(after_del_data[2])))
+                    ID_count_app += 1
+            else:
+                w_killfalse = Tk()
+                notice_false = Label(w_killfalse, text="Can't kill " + obj.get())
+                notice_false.pack()
+                w_killfalse.mainloop()
 
         b_start = Button(kill_obj, text="Start", command=remove_app)
         b_start.pack()
@@ -370,21 +426,22 @@ def click_processrunning_app():
         start_input = Entry(startP)
         start_input.pack()
 
-
         def add_app():
+            global ID_count_app
+            ID_count_app = 1
             send("STARTAPP|" + start_input.get())
-            table_process.delete(*table_process.get_children())
+            table_process_app.delete(*table_process_app.get_children())
 
             while True:
                 str_start = receive().decode(FORMAT)
                 if str_start == "DONE":
                     break
                 list_start = str_start.split('|')
-                global ID_count_app
+
                 list_table.append([str(list_start[1]), list_start[0], str(list_start[2])])
 
-                table_process.insert("", 'end', text="L" + str(ID_count_app),
-                                     values=(str(list_start[1]), list_start[0], str(list_start[2])))
+                table_process_app.insert("", 'end', text="L" + str(ID_count_app),
+                                         values=(str(list_start[1]), list_start[0], str(list_start[2])))
                 ID_count_app += 1
 
         b_start_process = Button(startP, text="Start", command=add_app)
@@ -393,17 +450,22 @@ def click_processrunning_app():
     b_startOUT = Button(prr, text="Start", command=click_startOUT_app)
     b_startOUT.pack()
 
+    def click_xoaapp():
+        table_process_app.delete(*table_process_app.get_children())
+
+    b_xoaapp = Button(prr, text="Xóa", command=click_xoaapp)
+    b_xoaapp.pack()
+
     prr.mainloop()
-
-
-
-
 
 
 # -------------------------keystroke-------------------
 def click_keystroke():
     key_stroke = Tk()
     key_stroke.title("KeyStroke")
+
+    print_text = Text(key_stroke)
+    print_text.pack()
 
     def click_hook():
         send("KEYSTROKE")
@@ -413,8 +475,13 @@ def click_keystroke():
 
     def click_inphim():
         send("INPHIM")
-        result_phim = receive()
+        result_phim = receive().decode(FORMAT)
         print(result_phim)
+        list_dataphim = result_phim.split('|')
+        for letter in list_dataphim:
+            print_text.insert(END, letter)
+            print_text.insert(END, " ")
+        print_text.insert(END, '\n')
 
     button_inphim = Button(key_stroke, text="In Phím", command=click_inphim)
     button_inphim.pack()
@@ -493,8 +560,16 @@ def click_suaregistry():
     # menu.delete(0, "end")
     subpath = Text(frame_suagiatri, width=50, height=1)
     subpath.grid(row=6, column=0, columnspan=3, padx=5, pady=5)
+    text_for_notice = Text(frame_suagiatri, height=15, width=50)
+    text_for_notice.grid(row=7, column=0, columnspan=3, padx=5, pady=5)
 
     def w_chinhsua(str_state):
+        if subpath.get("1.0", 'end-1c') == '':
+            notice_none = Tk()
+            text_none = Label(notice_none, text="Hãy nhập đường dẫn !!!")
+            text_none.pack()
+            notice_none.mainloop()
+            return None
 
         w_batdauchinhsua = Tk()
         print(clicked.get())
@@ -514,7 +589,7 @@ def click_suaregistry():
             g_value = t_value.get("1.0", 'end-1c')
 
             choose = StringVar(w_batdauchinhsua)
-            choose.set(OPT[0])
+            choose.set('Datatype')
 
             opt = OptionMenu(w_batdauchinhsua, choose, *OPT)
             opt.grid(row=5, column=0, columnspan=3)
@@ -525,11 +600,13 @@ def click_suaregistry():
             print("here " + name_value.get("1.0", 'end-1c'))
             list_opt.append(name_value.get("1.0", 'end-1c'))
         elif clicked.get() == OPTIONS[3]:
-            notice = Label(w_batdauchinhsua, text = "Click để gửi yêu cầu")
-            notice.grid(row = 0,column=0,padx=5,pady=5)
+            notice = Label(w_batdauchinhsua, text="Click để gửi yêu cầu")
+            notice.grid(row=0, column=0, padx=5, pady=5)
         elif clicked.get() == OPTIONS[3]:
-            notice = Label(w_batdauchinhsua, text = "Click để gửi yêu cầu")
-            notice.grid(row = 0,column=0,padx=5,pady=5)
+            notice = Label(w_batdauchinhsua, text="Click để gửi yêu cầu")
+            notice.grid(row=0, column=0, padx=5, pady=5)
+
+
 
         def click_gui():
             global g_name
@@ -554,7 +631,45 @@ def click_suaregistry():
             send_msg = "REGISTRY" + "|" + g_mode + "|" + subpath.get("1.0",
                                                                      'end-1c') + "|" + g_name + "|" + g_value + "|" + g_type
             send(send_msg)
-            print(receive())
+            #print(receive())
+            str_rec = str(receive().decode(FORMAT))
+            if g_mode == OPTIONS[0].replace(" ","").upper():
+                if str_rec == "None":
+                    text_for_notice.insert(tkinter.END, "[ERROR]: Value không tồn tại")
+                elif str_rec == "False":
+                    text_for_notice.insert(tkinter.END, "[ERROR]: Get value không thành công")
+
+                else:
+                    text_for_notice.insert(tkinter.END, str_rec)
+            elif g_mode == OPTIONS[1].replace(" ","").upper():
+                if str_rec == "False":
+                    text_for_notice.insert(tkinter.END, "[ERROR]: Set giá trị không thành công")
+                else:
+                    text_for_notice.insert(tkinter.END, "Set giá trị thành công")
+            elif g_mode == OPTIONS[2].replace(" ","").upper():
+                if str_rec == "False":
+                    text_for_notice.insert(tkinter.END, "[ERROR]: Value không tồn tại")
+                else:
+                    text_for_notice.insert(tkinter.END, "Delete giá trị thành công")
+            elif g_mode == OPTIONS[3].replace(" ","").upper():
+                if str_rec == "False":
+                    text_for_notice.insert(tkinter.END, "[ERROR]: Create key không thành công")
+                else:
+                    print(str_rec)
+                    text_for_notice.insert(tkinter.END, "Create key thành công")
+            elif g_mode == OPTIONS[4].replace(" ","").upper():
+                if str_rec == "False":
+                    text_for_notice.insert(tkinter.END, "[ERROR]: Delete key không thành công")
+                else:
+                    print(str_rec)
+                    text_for_notice.insert(tkinter.END, "Delete key thành công")
+
+
+
+            text_for_notice.insert(tkinter.END, '\n')
+
+
+
 
         b_gui = Button(w_batdauchinhsua, text="Gửi", command=click_gui)
         b_gui.grid()
@@ -569,15 +684,20 @@ def click_suaregistry():
     registry.mainloop()
 
 
-#--------tat may
+# --------tat may
 def click_tatmay():
     send("TATMAY")
 
+
 # ------thoat
 def click_thoat():
-    send(DISCONNECT_MESSAGE)
-    Client.destroy()
+    if FLAG_CONNECTION:
+        try:
+            send(DISCONNECT_MESSAGE)
+        except:
+            pass
 
+    Client.destroy()
 
 
 B_ketnoi = Button(Client, text="Kết nối", width=10, command=click_ketnoi)
@@ -587,10 +707,10 @@ B_processrunning = Button(Client, text="Process Running", justify=LEFT, width=15
                           command=click_processrunning)
 B_processrunning.grid(column=0, row=1, padx=5, pady=5, columnspan=2, rowspan=6)
 
-B_apprunning = Button(Client, text="App Running", width=23, height=5,command = click_processrunning_app)
+B_apprunning = Button(Client, text="App Running", width=23, height=5, command=click_processrunning_app)
 B_apprunning.grid(column=2, row=1, padx=5, pady=5, columnspan=3, rowspan=2)
 
-B_tatmay = Button(Client, text="Tắt máy", justify=LEFT, width=7, height=4,command = click_tatmay)
+B_tatmay = Button(Client, text="Tắt máy", justify=LEFT, width=7, height=4, command=click_tatmay)
 B_tatmay.grid(column=2, row=3, padx=5, pady=5, rowspan=2)
 
 B_suaregistry = Button(Client, text="Sửa Registry", justify=LEFT, width=22, height=3, command=click_suaregistry)
@@ -599,12 +719,11 @@ B_suaregistry.grid(column=2, row=5, padx=5, pady=5, columnspan=4, rowspan=2)
 B_chupmanhinh = Button(Client, text="Chụp màn hình", width=13, height=4, command=click_chupmanhinh)
 B_chupmanhinh.grid(column=3, row=3, padx=5, pady=5, columnspan=2)
 
-B_thoat = Button(Client, text="Thoát", width=10, height=3,command = click_thoat)
+B_thoat = Button(Client, text="Thoát", width=10, height=3, command=click_thoat)
 B_thoat.grid(column=6, row=5, padx=5, pady=5, rowspan=2)
 
 B_ketstoke = Button(Client, text="Keystoke", width=10, height=10, command=click_keystroke)
 B_ketstoke.grid(column=5, row=1, padx=5, pady=5, columnspan=2, rowspan=4)
-
 
 if not FLAG_CONNECTION:
     B_processrunning['state'] = tkinter.DISABLED
@@ -612,9 +731,6 @@ if not FLAG_CONNECTION:
     B_chupmanhinh['state'] = tkinter.DISABLED
     B_suaregistry['state'] = tkinter.DISABLED
     B_apprunning['state'] = tkinter.DISABLED
-
-
-
 
 print(IP_SERVER)
 
