@@ -73,7 +73,7 @@ def handle_image(conn):
 # -------process running
 def check(list, process):
     for line in list:
-        if line[1] == process.Name:
+        if line[1] == process[0]:
             line[2] += 1
             return True
 
@@ -90,9 +90,35 @@ def find_process():
     # Iterating through all the running processes
 
     list = []
-    for process in f.Win32_Process():
+    # ------------
+    output = os.popen('wmic process get description, processid').read()
+    list_data = []
+    list_data = output.split(' ')
+    result = []
+    for line in list_data:
+        if line != '':
+            result.append(line)
+    str_data = ''
+    id_data = ''
+    return_data = []
+    for data in result:
+        print("--" + data + "--")
+        if data != "Description" and data != "ProcessId":
+            if not data.isnumeric():
+                str_data += data + " "
+            else:
+                id_data += data
+                str_data = str_data.strip()
+                return_data.append([str_data, id_data])
+                str_data = ''
+                id_data = ''
+
+    print(return_data)
+    # ---------
+    for process in return_data:
         if check(list, process) == False:
-            list.append([process.ProcessId, process.Name, 1])
+            list.append([int(process[1]), process[0], 1])
+    print(list)
     return list
 
 
@@ -117,12 +143,8 @@ def handle_start(conn, str_mes):
     app = Application().start(str_mes)
     handle_process(conn)
 
+
 # -------app running
-
-
-
-
-
 
 
 def check_app(list, app):
@@ -147,19 +169,19 @@ def find_app():
 
     result = []
     for data in list_data:
-        result_data = []
-        str_data = ''
-        str_id = ''
-        for index in data:
-            if index != '':
-                if index != data[-1]:
-                    str_data += index + ' '
-                else:
-                    str_id = index
-
-        result_data.append(str_data.strip())
-        result_data.append(str_id.strip('\r\n'))
-        result.append(result_data)
+        if data != list_data[0] and data != list_data[1]:
+            result_data = []
+            str_data = ''
+            str_id = ''
+            for index in data:
+                if index != '':
+                    if index != data[-1]:
+                        str_data += index + ' '
+                    else:
+                        str_id = index
+            result_data.append(str_data.strip())
+            result_data.append(str_id.strip('\r\n'))
+            result.append(result_data)
 
     print(result)
 
@@ -182,24 +204,15 @@ def handle_app(conn):
 def handle_kill_app(str_mes):
     try:
         os.kill(int(str_mes), signal.SIGTERM)
-        #return True
+        return True
     except:
-        pass
-        #return False
 
+        return False
 
 
 def handle_start_app(conn, str_mes):
     app = Application().start(str_mes)
     handle_app(conn)
-
-
-
-
-
-
-
-
 
 
 # -------------keystroke---------------
@@ -388,7 +401,7 @@ def handle_registry(list_mes):
         return handle_deletekey(state, subpath[1])
 
 
-#---------tatmay
+# ---------tatmay
 def handle_tatmay():
     def countdown(count):
         # change text in label
@@ -401,25 +414,22 @@ def handle_tatmay():
                 os.system("shutdown /s /t 1")
 
     w_tatmay = Tk()
-    ques = Label(w_tatmay,text ="Do you wish to shutdown your computer ? (yes / no): " )
+    ques = Label(w_tatmay, text="Do you wish to shutdown your computer ? (yes / no): ")
     ques.pack()
 
     def click_yes():
         os.system("shutdown /s /t 1")
 
-    b_yes = Button(w_tatmay, text = "Yes")
+    b_yes = Button(w_tatmay, text="Yes")
     b_yes.pack()
-    b_no = Button(w_tatmay, text = "No",command = w_tatmay.destroy)
+    b_no = Button(w_tatmay, text="No", command=w_tatmay.destroy)
     b_no.pack()
 
     count_label = Label(w_tatmay)
     count_label.pack()
     countdown(30)
 
-
     w_tatmay.mainloop()
-
-
 
 
 # ---------client
@@ -448,6 +458,7 @@ def handle_client(conn, addr):
                 handle_process(conn)
             elif list_mes[0] == "KILL":
                 send_process(conn, str(handle_kill(list_mes[1])))
+                handle_process(conn)
             elif list_mes[0] == "START":
                 handle_start(conn, list_mes[1])
             elif list_mes[0] == "KEYSTROKE":
@@ -471,11 +482,10 @@ def handle_client(conn, addr):
             elif list_mes[0] == "STARTAPP":
                 handle_start_app(conn, list_mes[1])
             elif list_mes[0] == "KILLAPP":
-                handle_kill_app(list_mes[1])
+                send_process(conn, str(handle_kill_app(list_mes[1])))
                 handle_app(conn)
             elif list_mes[0] == "TATMAY":
                 handle_tatmay()
-
 
     conn.close()
 

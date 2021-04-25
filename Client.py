@@ -14,7 +14,7 @@ import time
 
 HEADER = 64
 PORT = 2050
-SERVER = "192.168.43.120"
+SERVER = "192.168.1.8"
 FORMAT = "utf-8"
 ADDR = (SERVER, PORT)
 DISCONNECT_MESSAGE = "!DISCONNECTED"
@@ -33,8 +33,18 @@ def send(message):
     message = message.encode(FORMAT)
     mes_lenth = str(len(message)).encode(FORMAT)
     mes_lenth += b' ' * (HEADER - len(mes_lenth))
-    client.send(mes_lenth)
-    client.send(message)
+    try:
+        client.send(mes_lenth)
+        client.send(message)
+    except:
+        FLAG_CONNECTION = False
+
+        w_disconnect = Tk()
+        w_disconnect.title("ERROR")
+        notice_disconnect = Label(w_disconnect,text = "Disconnected to server!!!")
+        notice_disconnect.pack()
+        w_disconnect.mainloop()
+
 
 
 def receive():
@@ -78,6 +88,7 @@ def click_ketnoi():
     except:
         newF = Label(sth, text="False")
         newF.grid()
+        FLAG_CONNECTION = False
         return False
 
     sth.mainloop()
@@ -230,24 +241,32 @@ def click_processrunning():
 
         def remove():
             send("KILL|" + obj.get())
-            if (receive().decode(FORMAT) == "True"):
-                for i in table_process.get_children():
-                    table_process.delete(i)
-                global id
-                id = 0
-                n = len(list_table)
-                while id < n:
-                    if list_table[id][1] != obj.get():
+            if receive().decode() == "True":
+                table_process.delete(*table_process.get_children())
+                #for i in table_process.get_children():
+                    #table_process.delete(i)
+                while True:
+                    str_start = receive().decode(FORMAT)
+                    if str_start == "DONE":
+                        break
+                    list_start = str_start.split('|')
+                    global ID_count
+                    list_table.append([str(list_start[1]), list_start[0], str(list_start[2])])
 
-                        table_process.insert("", 'end', text="L" + str(ID_count),
-                                             values=(str(list_table[id][1]), list_table[id][0], str(list_table[id][2])))
-                    else:
-                        list_table.remove(list_table[id])
-                        id -= 1
-                        n -= 1
-                    id += 1
+                    table_process.insert("", 'end', text="L" + str(ID_count),
+                                         values=(str(list_start[1]), list_start[0], str(list_start[2])))
+                    ID_count += 1
+
+
             else:
-                print("False")
+
+                process_kilfalse = Tk()
+                label_notice = Label(process_kilfalse,text = "Can't kill "+ obj.get())
+                label_notice.pack()
+
+
+                process_kilfalse.mainloop()
+
 
         b_start = Button(kill_obj, text="Start", command=remove)
         b_start.pack()
@@ -265,6 +284,7 @@ def click_processrunning():
 
         def add_process():
             send("START|" + start_input.get())
+            table_process.delete(*table_process.get_children())
             while True:
                 str_start = receive().decode(FORMAT)
                 if str_start == "DONE":
@@ -302,25 +322,25 @@ def click_processrunning_app():
     prr = Tk()
     prr.title("process")
 
-    table_process = Treeview(prr, selectmode='browse')
+    table_process_app = Treeview(prr, selectmode='browse')
 
-    table_process.pack(side='right')  # column=0, row=1, columnspan=4)
+    table_process_app.pack(side='right')  # column=0, row=1, columnspan=4)
 
-    scrollbar = Scrollbar(prr, orient="vertical", command=table_process.yview)
+    scrollbar = Scrollbar(prr, orient="vertical", command=table_process_app.yview)
     scrollbar.pack(side='right', fill='x')
-    table_process.configure(xscrollcommand=scrollbar.set)
+    table_process_app.configure(xscrollcommand=scrollbar.set)
 
-    table_process['columns'] = ["1", "2", "3"]
+    table_process_app['columns'] = ["1", "2", "3"]
 
-    table_process['show'] = 'headings'
+    table_process_app['show'] = 'headings'
 
-    table_process.column("1", width=120, anchor=W)
-    table_process.column("2", width=120, anchor=CENTER)
-    table_process.column("3", width=120, anchor=CENTER)
+    table_process_app.column("1", width=120, anchor=W)
+    table_process_app.column("2", width=120, anchor=CENTER)
+    table_process_app.column("3", width=120, anchor=CENTER)
 
-    table_process.heading("1", text="Name Process", anchor=W)
-    table_process.heading("2", text="ID Process", anchor=CENTER)
-    table_process.heading("3", text="Count Thread", anchor=W)
+    table_process_app.heading("1", text="Name Process", anchor=W)
+    table_process_app.heading("2", text="ID Process", anchor=CENTER)
+    table_process_app.heading("3", text="Count Thread", anchor=W)
     global ID_count_app
     ID_count_app = 1
     list_table = []
@@ -332,7 +352,7 @@ def click_processrunning_app():
         data = line.split('|')
         list_table.append([str(data[1]), data[0], str(data[2])])
 
-        table_process.insert("", 'end', text="L" + str(ID_count_app),
+        table_process_app.insert("", 'end', text="L" + str(ID_count_app),
                              values=(str(data[1]), data[0], str(data[2])))
         ID_count_app += 1
 
@@ -345,16 +365,23 @@ def click_processrunning_app():
 
         def remove_app():
             send("KILLAPP|" + obj.get())
-            table_process.delete(*table_process.get_children())
-            ID_app = 0
-            while True:
-                after_del = receive().decode(FORMAT)
-                if after_del == "DONE":
-                    break
-                after_del_data = after_del.split('|')
-                table_process.insert("", 'end', text="L" + str(ID_app),
-                                     values=(str(after_del_data[1]), after_del_data[0], str(after_del_data[2])))
-                ID_app += 1
+            if receive().decode() == "True":
+                table_process_app.delete(*table_process_app.get_children())
+                ID_app = 0
+                while True:
+                    after_del = receive().decode(FORMAT)
+                    if after_del == "DONE":
+                        break
+                    after_del_data = after_del.split('|')
+                    table_process_app.insert("", 'end', text="L" + str(ID_app),
+                                         values=(str(after_del_data[1]), after_del_data[0], str(after_del_data[2])))
+                    ID_app += 1
+            else:
+                w_killfalse =Tk()
+                notice_false = Label(w_killfalse,text = "Can't kill "+obj.get())
+                notice_false.pack()
+                w_killfalse.mainloop()
+
 
 
         b_start = Button(kill_obj, text="Start", command=remove_app)
@@ -373,7 +400,7 @@ def click_processrunning_app():
 
         def add_app():
             send("STARTAPP|" + start_input.get())
-            table_process.delete(*table_process.get_children())
+            table_process_app.delete(*table_process_app.get_children())
 
             while True:
                 str_start = receive().decode(FORMAT)
@@ -383,7 +410,7 @@ def click_processrunning_app():
                 global ID_count_app
                 list_table.append([str(list_start[1]), list_start[0], str(list_start[2])])
 
-                table_process.insert("", 'end', text="L" + str(ID_count_app),
+                table_process_app.insert("", 'end', text="L" + str(ID_count_app),
                                      values=(str(list_start[1]), list_start[0], str(list_start[2])))
                 ID_count_app += 1
 
@@ -575,7 +602,12 @@ def click_tatmay():
 
 # ------thoat
 def click_thoat():
-    send(DISCONNECT_MESSAGE)
+    if FLAG_CONNECTION:
+        try:
+            send(DISCONNECT_MESSAGE)
+        except:
+            pass
+
     Client.destroy()
 
 
